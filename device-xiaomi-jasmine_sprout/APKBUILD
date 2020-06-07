@@ -1,0 +1,22 @@
+# Reference: <https://postmarketos.org/devicepkg>
+pkgname=device-xiaomi-jasmine_sprout
+pkgdesc="Xiaomi Mi A2"
+pkgver=0.1
+pkgrel=0
+url="https://postmarketos.org"
+license="MIT"
+arch="aarch64"
+options="!check !archcheck"
+depends="postmarketos-base mkbootimg linux-xiaomi-jasmine_sprout mesa-dri-swrast msm-fb-refresher"
+makedepends="devicepkg-dev"
+source="deviceinfo"
+
+build() {
+	devicepkg_build $startdir $pkgname
+}
+
+package() {
+	devicepkg_package $startdir $pkgname
+}
+
+sha512sums="9beeecf8b804c91ac4e4ad7b86a8f0ab6e9faac71ee629c1ce7b37b9a8ba561c8d61198a0dc2630fd6dd32fd95043956b33f44956336709a744804c7c3fd029c  deviceinfo"
