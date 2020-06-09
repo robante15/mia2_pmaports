@@ -1,8 +1,9 @@
 # Reference: <https://postmarketos.org/vendorkernel>
-# Kernel config based on: arch/arm64/configs/(CHANGEME!)
+# Kernel config based on: arch/arm64/configs/wayne_defconfig
+# Maintainer: Roberto Acevedo <robante12@gmail.com>
 
 pkgname=linux-xiaomi-jasmine_sprout
-pkgver=4.4.153
+pkgver=4.4.226
 pkgrel=0
 pkgdesc="Xiaomi Mi A2 kernel fork"
 arch="aarch64"
@@ -21,9 +22,9 @@ if [ "${CC:0:5}" != "gcc6-" ]; then
 fi
 
 # Source
-_user="MiCode"
-_repository="Xiaomi_Kernel_OpenSource"
-_commit="ff00cc710c2b721b631fa2edc1fb9387db31d029"
+_user="xiaomi-sdm660"
+_repository="android_kernel_xiaomi_sdm660"
+_commit="dd155506c8c44f5709986418c2eae66ae5720588"
 _config="config-$_flavor.$arch"
 source="
 	$pkgname-$_commit.tar.gz::https://github.com/$_user/$_repository/archive/$_commit.tar.gz
@@ -31,8 +32,6 @@ source="
 	0001-Use-relative-includes.patch
 	0002-Fix-TRACE_INCLUDE_PATH-paths.patch
 	0003-Add-config-option-to-fix-bootloader-cmdline-args.patch
-	0005-Adds-and-sets-BGRA-as-default.patch
-	0006-mdss-panel-to-fb-var.patch
 "
 
 builddir="$srcdir/$_repository-$_commit"
@@ -57,10 +56,8 @@ package() {
 		INSTALL_MOD_PATH="$pkgdir" modules_install
 }
 
-sha512sums="9afa0ef11683093114dc47c3f4601a7f9183f473d2adac0cddb6046b82abb0e74c840a00095f9bf3037c1089f1aacdf175c6feadd57609d60aa3eaddfa4c29d9  linux-xiaomi-jasmine_sprout-ff00cc710c2b721b631fa2edc1fb9387db31d029.tar.gz
-edd515216e578d1078c6a7b695d9142e2fab5c61f02fdcd4b88cf50f2dfa36b94c06953ccccd0624a7023188f4a357926d6358199d7fe8ab21ff3216591b4179  config-xiaomi-jasmine_sprout.aarch64
+sha512sums="fb25962f4c82e3b5320d16013a1daeac26fe5fc43df4455517f4f22b0f4494ce079b486b2eb3381cb384471fa4a9def6d6bcb6009bb2d18976bd514672ff2876  linux-xiaomi-jasmine_sprout-dd155506c8c44f5709986418c2eae66ae5720588.tar.gz
+fb522836a215f49c2ca75c627b170f2925993cd1a87a5820214742033bf8cbafe83a55ab933e89f5887cdb430c85e3309255f8ef055164cf40f885920e2f42eb  config-xiaomi-jasmine_sprout.aarch64
 9f1b27e523675ecaafd0ffd884e3e8d0fe9b0bf78b09b5fe044a5d5c9888a86fb0007aa9d90118f0b022a4ace62c5be236097df3bb67a3207a24a766d0907c33  0001-Use-relative-includes.patch
 a8713d22404a5e2c0d2add3deb4cb033e972bd1983e10f1557d4de640c1329af50be2bfd92dc3cf76df711a6b4a422b920da76c2d6c4435e3624c85f7d07ae52  0002-Fix-TRACE_INCLUDE_PATH-paths.patch
-9ce867c4254b537ef5d2485780c26b72da8a3a8767ba71557f3b48d6c550e0e14c8c3e575b31bf65d2878f08a8a4926e48a1c2f1be534bf80a7a57f58313b0fd  0003-Add-config-option-to-fix-bootloader-cmdline-args.patch
-f2a97a9500b6155a11f2341a8fd4b083ceb25a17d656c7975e34b9f3d8bacb495ae687f823db5fd07ddee27b2d95021f193bfadb5274185334255cda12bc85ce  0005-Adds-and-sets-BGRA-as-default.patch
-d5b868c64b8ebddcf74cb3aa478f30f0897af1e14e4fc42d977921104a6c568cc0bf36fc8a3b0f538cd3ca2ebf59244fdf23186a903259e5acc14d1c4ef4ccc3  0006-mdss-panel-to-fb-var.patch"
+9ce867c4254b537ef5d2485780c26b72da8a3a8767ba71557f3b48d6c550e0e14c8c3e575b31bf65d2878f08a8a4926e48a1c2f1be534bf80a7a57f58313b0fd  0003-Add-config-option-to-fix-bootloader-cmdline-args.patch"
