@@ -7,7 +7,7 @@ url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
 options="!check !archcheck"
-depends="postmarketos-base mkbootimg linux-xiaomi-jasmine_sprout mesa-dri-swrast msm-fb-refresher"
+depends="postmarketos-base mkbootimg linux-xiaomi-jasmine_sprout mesa-dri-gallium"
 makedepends="devicepkg-dev"
 source="deviceinfo"
 
@@ -19,4 +19,4 @@ package() {
 	devicepkg_package $startdir $pkgname
 }
 
-sha512sums="73e681a1b94eabd558e7ddbecdea503aaea93cb099f11a94d784f2d8c3b188bc011205244272b54145257f8ea8957cd52ca38fa3c8c1da2ac5dd046915995aa2  deviceinfo"
+sha512sums="9032f919ba5b6f2291bba95414a97d5a12926478880fa8b097177e60f125e3c6041271b5638f6cdd378baf5db79064cce7f4d5aabe9012daa8b99126d20d4415  deviceinfo"
