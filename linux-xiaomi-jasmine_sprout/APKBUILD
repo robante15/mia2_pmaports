@@ -23,9 +23,10 @@ _config="config-$_flavor.$arch"
 source="
 	$pkgname-$_commit.tar.gz::https://github.com/$_user/$_repository/archive/$_commit.tar.gz
 	$_config
-	remove_bootloader_cmdline_opts.patch
-	disable_skip_initramfs.patch
-	oldnrdis_gadgetmakefile.patch
+	0001-remove_bootloader_cmdline_opts.patch
+	0002-disable_skip_initramfs.patch
+	0003-oldnrdis_gadgetmakefile.patch
+	0005-Adds-and-sets-BGRA-as-default.patch
 "
 builddir="$srcdir/$_repository-$_commit"
 _outdir="out"
@@ -61,4 +62,5 @@ sha512sums="fb25962f4c82e3b5320d16013a1daeac26fe5fc43df4455517f4f22b0f4494ce079b
 56fdd5372e7c2448649206a4d1c32abb04cb5bcf34dc776911df3c5535e917c4afbecf711c269b79e14c61d60f42f7e61fb23a29286d6d4425b5d441e00c1697  config-xiaomi-jasmine_sprout.aarch64
 9ce867c4254b537ef5d2485780c26b72da8a3a8767ba71557f3b48d6c550e0e14c8c3e575b31bf65d2878f08a8a4926e48a1c2f1be534bf80a7a57f58313b0fd  remove_bootloader_cmdline_opts.patch
 65048fb6474fd543b14bc99d9d95cfe5297da239af211d327a8509f7777d489bd01dd911364e0c62ec0e68f4c22ebb3b145eabfe01cad2abf57cf46896a1e58f  disable_skip_initramfs.patch
-cd378e1b327959b06ccd3755b0470185d83512782cfbf16ebff7412751e8e1ac1180be272131ca6f2ad2241e4bfada225ce9574443390ef742ae2ebeb856dab9  oldrndis_makefile2.patch"
+cd378e1b327959b06ccd3755b0470185d83512782cfbf16ebff7412751e8e1ac1180be272131ca6f2ad2241e4bfada225ce9574443390ef742ae2ebeb856dab9  oldnrdis_gadgetmakefile.patch
+f2a97a9500b6155a11f2341a8fd4b083ceb25a17d656c7975e34b9f3d8bacb495ae687f823db5fd07ddee27b2d95021f193bfadb5274185334255cda12bc85ce  0005-Adds-and-sets-BGRA-as-default.patch"
