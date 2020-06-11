@@ -1,0 +1,576 @@
+diff --git a/drivers/usb/gadget/function/Makefile b/drivers/usb/gadget/function/Makefile
+index e04ca4b97c8e..5d83bcaf6872 100644
+--- a/drivers/usb/gadget/function/Makefile
++++ b/drivers/usb/gadget/function/Makefile
+@@ -16,6 +16,7 @@ obj-$(CONFIG_USB_F_SERIAL)	+= usb_f_serial.o
+ usb_f_obex-y			:= f_obex.o
+ obj-$(CONFIG_USB_F_OBEX)	+= usb_f_obex.o
+ obj-$(CONFIG_USB_U_ETHER)	+= u_ether.o
++obj-$(CONFIG_USB_RNDIS)		+= rndis.o
+ usb_f_ncm-y			:= f_ncm.o
+ obj-$(CONFIG_USB_F_NCM)		+= usb_f_ncm.o
+ usb_f_ecm-y			:= f_ecm.o
+@@ -26,7 +27,7 @@ usb_f_eem-y			:= f_eem.o
+ obj-$(CONFIG_USB_F_EEM)		+= usb_f_eem.o
+ usb_f_ecm_subset-y		:= f_subset.o
+ obj-$(CONFIG_USB_F_SUBSET)	+= usb_f_ecm_subset.o
+-usb_f_rndis-y			:= f_rndis.o rndis.o
++usb_f_rndis-y			:= f_rndis.o
+ obj-$(CONFIG_USB_F_RNDIS)	+= usb_f_rndis.o
+ usb_f_mass_storage-y		:= f_mass_storage.o storage_common.o
+ obj-$(CONFIG_USB_F_MASS_STORAGE)+= usb_f_mass_storage.o
+diff --git a/drivers/usb/gadget/function/rndis.c b/drivers/usb/gadget/function/rndis.c
+index 1d13d79d5070..c73ec46a43ee 100644
+--- a/drivers/usb/gadget/function/rndis.c
++++ b/drivers/usb/gadget/function/rndis.c
+@@ -43,12 +43,12 @@
+ #include "rndis.h"
+ 
+ int rndis_ul_max_pkt_per_xfer_rcvd;
+-module_param(rndis_ul_max_pkt_per_xfer_rcvd, int, S_IRUGO);
++module_param(rndis_ul_max_pkt_per_xfer_rcvd, int, 0444);
+ MODULE_PARM_DESC(rndis_ul_max_pkt_per_xfer_rcvd,
+ 		"Max num of REMOTE_NDIS_PACKET_MSGs received in a single transfer");
+ 
+ int rndis_ul_max_xfer_size_rcvd;
+-module_param(rndis_ul_max_xfer_size_rcvd, int, S_IRUGO);
++module_param(rndis_ul_max_xfer_size_rcvd, int, 0444);
+ MODULE_PARM_DESC(rndis_ul_max_xfer_size_rcvd,
+ 		"Max size of bus transfer received");
+ 
+@@ -90,8 +90,7 @@ static const struct file_operations rndis_proc_fops;
+ #endif /* CONFIG_USB_GADGET_DEBUG_FILES */
+ 
+ /* supported OIDs */
+-static const u32 oid_supported_list[] =
+-{
++static const u32 oid_supported_list[] = {
+ 	/* the general stuff */
+ 	RNDIS_OID_GEN_SUPPORTED_LIST,
+ 	RNDIS_OID_GEN_HARDWARE_STATUS,
+@@ -484,8 +483,7 @@ static int gen_ndis_query_resp(struct rndis_params *params, u32 OID, u8 *buf,
+ 		break;
+ 
+ 	default:
+-		pr_warning("%s: query unknown OID 0x%08X\n",
+-			 __func__, OID);
++		pr_warn("%s: query unknown OID 0x%08X\n", __func__, OID);
+ 	}
+ 	if (retval < 0)
+ 		length = 0;
+@@ -553,8 +551,8 @@ static int gen_ndis_set_resp(struct rndis_params *params, u32 OID,
+ 		break;
+ 
+ 	default:
+-		pr_warning("%s: set unknown OID 0x%08X, size %d\n",
+-			 __func__, OID, buf_len);
++		pr_warn("%s: set unknown OID 0x%08X, size %d\n",
++			__func__, OID, buf_len);
+ 	}
+ 
+ 	return retval;
+@@ -596,7 +594,6 @@ static int rndis_init_response(struct rndis_params *params,
+ 	resp->AFListOffset = cpu_to_le32(0);
+ 	resp->AFListSize = cpu_to_le32(0);
+ 
+-	params->ul_max_xfer_size = le32_to_cpu(resp->MaxTransferSize);
+ 	params->resp_avail(params->v);
+ 	return 0;
+ }
+@@ -799,7 +796,7 @@ EXPORT_SYMBOL_GPL(rndis_set_host_mac);
+  */
+ int rndis_msg_parser(struct rndis_params *params, u8 *buf)
+ {
+-	u32 MsgType, MsgLength, major, minor, max_transfer_size;
++	u32 MsgType, MsgLength;
+ 	__le32 *tmp;
+ 
+ 	if (!buf)
+@@ -820,22 +817,17 @@ int rndis_msg_parser(struct rndis_params *params, u8 *buf)
+ 	/* For USB: responses may take up to 10 seconds */
+ 	switch (MsgType) {
+ 	case RNDIS_MSG_INIT:
+-		pr_debug("%s: RNDIS_MSG_INIT\n",
+-			__func__);
++		pr_debug("%s: RNDIS_MSG_INIT\n", __func__);
+ 		tmp++; /* to get RequestID */
+-		major = get_unaligned_le32(tmp++);
+-		minor = get_unaligned_le32(tmp++);
+-		max_transfer_size = get_unaligned_le32(tmp++);
+-
+-		params->host_rndis_major_ver = major;
+-		params->host_rndis_minor_ver = minor;
+-		params->dl_max_xfer_size = max_transfer_size;
++		params->host_rndis_major_ver = get_unaligned_le32(tmp++);
++		params->host_rndis_minor_ver = get_unaligned_le32(tmp++);
++		params->dl_max_xfer_size = get_unaligned_le32(tmp++);
+ 
+ 		pr_debug("%s(): RNDIS Host Major:%d Minor:%d version\n",
+-				__func__, major, minor);
+-		pr_debug("%s(): UL Max Transfer size:%x\n", __func__,
+-				max_transfer_size);
+-
++					__func__, params->host_rndis_major_ver,
++					params->host_rndis_minor_ver);
++		pr_debug("%s(): DL Max Transfer size:%x\n",
++				__func__, params->dl_max_xfer_size);
+ 		params->state = RNDIS_INITIALIZED;
+ 		return rndis_init_response(params, (rndis_init_msg_type *)buf);
+ 
+@@ -882,7 +874,7 @@ int rndis_msg_parser(struct rndis_params *params, u8 *buf)
+ 		 * In one case those messages seemed to relate to the host
+ 		 * suspending itself.
+ 		 */
+-		pr_warning("%s: unknown RNDIS message 0x%08X len %d\n",
++		pr_warn("%s: unknown RNDIS message 0x%08X len %d\n",
+ 			__func__, MsgType, MsgLength);
+ 		print_hex_dump_bytes(__func__, DUMP_PREFIX_OFFSET,
+ 				     buf, MsgLength);
+@@ -950,7 +942,7 @@ struct rndis_params *rndis_register(void (*resp_avail)(void *v), void *v,
+ 	params->resp_avail = resp_avail;
+ 	params->flow_ctrl_enable = flow_ctrl_enable;
+ 	params->v = v;
+-	INIT_LIST_HEAD(&(params->resp_queue));
++	INIT_LIST_HEAD(&params->resp_queue);
+ 	pr_debug("%s: configNr = %d\n", __func__, i);
+ 
+ 	return params;
+@@ -1027,18 +1019,6 @@ int rndis_set_param_medium(struct rndis_params *params, u32 medium, u32 speed)
+ }
+ EXPORT_SYMBOL_GPL(rndis_set_param_medium);
+ 
+-u32 rndis_get_dl_max_xfer_size(struct rndis_params *params)
+-{
+-	pr_debug("%s:\n", __func__);
+-	return params->dl_max_xfer_size;
+-}
+-
+-u32 rndis_get_ul_max_xfer_size(struct rndis_params *params)
+-{
+-	pr_debug("%s:\n", __func__);
+-	return params->ul_max_xfer_size;
+-}
+-
+ void rndis_set_max_pkt_xfer(struct rndis_params *params, u8 max_pkt_per_xfer)
+ {
+ 	pr_debug("%s:\n", __func__);
+@@ -1066,7 +1046,8 @@ void rndis_flow_control(struct rndis_params *params, bool enable_flow_control)
+ 	if (enable_flow_control) {
+ 		if (params->state == RNDIS_DATA_INITIALIZED) {
+ 			if (params->flow_ctrl_enable) {
+-				params->flow_ctrl_enable(enable_flow_control, params);
++				params->flow_ctrl_enable(enable_flow_control,
++								params);
+ 			} else {
+ 				netif_carrier_off(params->dev);
+ 				netif_stop_queue(params->dev);
+@@ -1076,7 +1057,8 @@ void rndis_flow_control(struct rndis_params *params, bool enable_flow_control)
+ 	} else {
+ 		if (params->state != RNDIS_DATA_INITIALIZED) {
+ 			if (params->flow_ctrl_enable) {
+-				params->flow_ctrl_enable(enable_flow_control, params);
++				params->flow_ctrl_enable(enable_flow_control,
++								params);
+ 			} else {
+ 				netif_carrier_on(params->dev);
+ 				if (netif_running(params->dev))
+@@ -1093,7 +1075,7 @@ void rndis_add_hdr(struct sk_buff *skb)
+ 
+ 	if (!skb)
+ 		return;
+-	header = (void *)skb_push(skb, sizeof(*header));
++	header = skb_push(skb, sizeof(*header));
+ 	memset(header, 0, sizeof *header);
+ 	header->MessageType = cpu_to_le32(RNDIS_MSG_PACKET);
+ 	header->MessageLength = cpu_to_le32(skb->len);
+@@ -1104,13 +1086,10 @@ EXPORT_SYMBOL_GPL(rndis_add_hdr);
+ 
+ void rndis_free_response(struct rndis_params *params, u8 *buf)
+ {
+-	rndis_resp_t *r;
+-	struct list_head *act, *tmp;
++	rndis_resp_t *r, *n;
+ 
+-	list_for_each_safe(act, tmp, &(params->resp_queue))
+-	{
+-		r = list_entry(act, rndis_resp_t, list);
+-		if (r && r->buf == buf) {
++	list_for_each_entry_safe(r, n, &params->resp_queue, list) {
++		if (r->buf == buf) {
+ 			list_del(&r->list);
+ 			kfree(r);
+ 		}
+@@ -1120,14 +1099,11 @@ EXPORT_SYMBOL_GPL(rndis_free_response);
+ 
+ u8 *rndis_get_next_response(struct rndis_params *params, u32 *length)
+ {
+-	rndis_resp_t *r;
+-	struct list_head *act, *tmp;
++	rndis_resp_t *r, *n;
+ 
+ 	if (!length) return NULL;
+ 
+-	list_for_each_safe(act, tmp, &(params->resp_queue))
+-	{
+-		r = list_entry(act, rndis_resp_t, list);
++	list_for_each_entry_safe(r, n, &params->resp_queue, list) {
+ 		if (!r->send) {
+ 			r->send = 1;
+ 			*length = r->length;
+@@ -1151,7 +1127,7 @@ static rndis_resp_t *rndis_add_response(struct rndis_params *params, u32 length)
+ 	r->length = length;
+ 	r->send = 0;
+ 
+-	list_add_tail(&r->list, &(params->resp_queue));
++	list_add_tail(&r->list, &params->resp_queue);
+ 	return r;
+ }
+ 
+@@ -1175,9 +1151,9 @@ int rndis_rm_hdr(struct gether *port,
+ 			return 0;
+ 		}
+ 
+-		if (skb->len < sizeof *hdr) {
+-			pr_err("invalid rndis pkt: skblen:%u hdr_len:%zu",
+-					skb->len, sizeof *hdr);
++		if (skb->len < sizeof(*hdr)) {
++			pr_err("invalid rndis pkt: skblen:%u hdr_len:%lu",
++					skb->len, sizeof(*hdr));
+ 			dev_kfree_skb_any(skb);
+ 			return -EINVAL;
+ 		}
+@@ -1190,15 +1166,15 @@ int rndis_rm_hdr(struct gether *port,
+ 		if (skb->len < msg_len ||
+ 				((data_offset + data_len + 8) > msg_len)) {
+ 			pr_err("invalid rndis message: %d/%d/%d/%d, len:%d\n",
+-					le32_to_cpu(hdr->MessageType),
+-					msg_len, data_offset, data_len, skb->len);
++					le32_to_cpu(hdr->MessageType), msg_len,
++					data_offset, data_len, skb->len);
+ 			dev_kfree_skb_any(skb);
+ 			return -EOVERFLOW;
+ 		}
+ 		if (le32_to_cpu(hdr->MessageType) != RNDIS_MSG_PACKET) {
+ 			pr_err("invalid rndis message: %d/%d/%d/%d, len:%d\n",
+-					le32_to_cpu(hdr->MessageType),
+-					msg_len, data_offset, data_len, skb->len);
++					le32_to_cpu(hdr->MessageType), msg_len,
++					data_offset, data_len, skb->len);
+ 			dev_kfree_skb_any(skb);
+ 			return -EINVAL;
+ 		}
+@@ -1217,7 +1193,7 @@ int rndis_rm_hdr(struct gether *port,
+ 			return -ENOMEM;
+ 		}
+ 
+-		skb_pull(skb, msg_len - sizeof *hdr);
++		skb_pull(skb, msg_len - sizeof(*hdr));
+ 		skb_trim(skb2, data_len);
+ 		skb_queue_tail(list, skb2);
+ 
+diff --git a/drivers/usb/gadget/function/rndis.h b/drivers/usb/gadget/function/rndis.h
+index 3d130b0576fc..2d7a0bfaeb23 100644
+--- a/drivers/usb/gadget/function/rndis.h
++++ b/drivers/usb/gadget/function/rndis.h
+@@ -22,8 +22,7 @@
+ #define RNDIS_MAXIMUM_FRAME_SIZE	1518
+ #define RNDIS_MAX_TOTAL_SIZE		1558
+ 
+-typedef struct rndis_init_msg_type
+-{
++typedef struct rndis_init_msg_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	RequestID;
+@@ -32,8 +31,7 @@ typedef struct rndis_init_msg_type
+ 	__le32	MaxTransferSize;
+ } rndis_init_msg_type;
+ 
+-typedef struct rndis_init_cmplt_type
+-{
++typedef struct rndis_init_cmplt_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	RequestID;
+@@ -49,15 +47,13 @@ typedef struct rndis_init_cmplt_type
+ 	__le32	AFListSize;
+ } rndis_init_cmplt_type;
+ 
+-typedef struct rndis_halt_msg_type
+-{
++typedef struct rndis_halt_msg_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	RequestID;
+ } rndis_halt_msg_type;
+ 
+-typedef struct rndis_query_msg_type
+-{
++typedef struct rndis_query_msg_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	RequestID;
+@@ -67,8 +63,7 @@ typedef struct rndis_query_msg_type
+ 	__le32	DeviceVcHandle;
+ } rndis_query_msg_type;
+ 
+-typedef struct rndis_query_cmplt_type
+-{
++typedef struct rndis_query_cmplt_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	RequestID;
+@@ -77,8 +72,7 @@ typedef struct rndis_query_cmplt_type
+ 	__le32	InformationBufferOffset;
+ } rndis_query_cmplt_type;
+ 
+-typedef struct rndis_set_msg_type
+-{
++typedef struct rndis_set_msg_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	RequestID;
+@@ -88,31 +82,27 @@ typedef struct rndis_set_msg_type
+ 	__le32	DeviceVcHandle;
+ } rndis_set_msg_type;
+ 
+-typedef struct rndis_set_cmplt_type
+-{
++typedef struct rndis_set_cmplt_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	RequestID;
+ 	__le32	Status;
+ } rndis_set_cmplt_type;
+ 
+-typedef struct rndis_reset_msg_type
+-{
++typedef struct rndis_reset_msg_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	Reserved;
+ } rndis_reset_msg_type;
+ 
+-typedef struct rndis_reset_cmplt_type
+-{
++typedef struct rndis_reset_cmplt_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	Status;
+ 	__le32	AddressingReset;
+ } rndis_reset_cmplt_type;
+ 
+-typedef struct rndis_indicate_status_msg_type
+-{
++typedef struct rndis_indicate_status_msg_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	Status;
+@@ -120,23 +110,20 @@ typedef struct rndis_indicate_status_msg_type
+ 	__le32	StatusBufferOffset;
+ } rndis_indicate_status_msg_type;
+ 
+-typedef struct rndis_keepalive_msg_type
+-{
++typedef struct rndis_keepalive_msg_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	RequestID;
+ } rndis_keepalive_msg_type;
+ 
+-typedef struct rndis_keepalive_cmplt_type
+-{
++typedef struct rndis_keepalive_cmplt_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	RequestID;
+ 	__le32	Status;
+ } rndis_keepalive_cmplt_type;
+ 
+-struct rndis_packet_msg_type
+-{
++struct rndis_packet_msg_type {
+ 	__le32	MessageType;
+ 	__le32	MessageLength;
+ 	__le32	DataOffset;
+@@ -150,8 +137,7 @@ struct rndis_packet_msg_type
+ 	__le32	Reserved;
+ } __attribute__ ((packed));
+ 
+-struct rndis_config_parameter
+-{
++struct rndis_config_parameter {
+ 	__le32	ParameterNameOffset;
+ 	__le32	ParameterNameLength;
+ 	__le32	ParameterType;
+@@ -160,23 +146,20 @@ struct rndis_config_parameter
+ };
+ 
+ /* implementation specific */
+-enum rndis_state
+-{
++enum rndis_state {
+ 	RNDIS_UNINITIALIZED,
+ 	RNDIS_INITIALIZED,
+ 	RNDIS_DATA_INITIALIZED,
+ };
+ 
+-typedef struct rndis_resp_t
+-{
++typedef struct rndis_resp_t {
+ 	struct list_head	list;
+ 	u8			*buf;
+ 	u32			length;
+ 	int			send;
+ } rndis_resp_t;
+ 
+-typedef struct rndis_params
+-{
++typedef struct rndis_params {
+ 	int			confignr;
+ 	u8			used;
+ 	u16			saved_filter;
+@@ -191,6 +174,9 @@ typedef struct rndis_params
+ 
+ 	u32			vendorID;
+ 	u8			max_pkt_per_xfer;
++	u32			host_rndis_major_ver;
++	u32			host_rndis_minor_ver;
++	u32			dl_max_xfer_size;
+ 	const char		*vendorDescr;
+ 	u8			pkt_alignment_factor;
+ 	void			(*resp_avail)(void *v);
+@@ -199,10 +185,6 @@ typedef struct rndis_params
+ 
+ 	void			*v;
+ 	struct list_head	resp_queue;
+-	u32			host_rndis_major_ver;
+-	u32			host_rndis_minor_ver;
+-	u32			ul_max_xfer_size;
+-	u32			dl_max_xfer_size;
+ } rndis_params;
+ 
+ /* RNDIS Message parser and other useless functions */
+@@ -217,8 +199,6 @@ int  rndis_set_param_vendor(struct rndis_params *params, u32 vendorID,
+ int  rndis_set_param_medium(struct rndis_params *params, u32 medium,
+ 			     u32 speed);
+ void rndis_set_max_pkt_xfer(struct rndis_params *params, u8 max_pkt_per_xfer);
+-u32  rndis_get_ul_max_xfer_size(struct rndis_params *params);
+-u32  rndis_get_dl_max_xfer_size(struct rndis_params *params);
+ void rndis_add_hdr(struct sk_buff *skb);
+ int rndis_rm_hdr(struct gether *port, struct sk_buff *skb,
+ 			struct sk_buff_head *list);
+diff --git a/include/linux/moduleparam.h b/include/linux/moduleparam.h
+index 52666d90ca94..ba36506db4fb 100644
+--- a/include/linux/moduleparam.h
++++ b/include/linux/moduleparam.h
+@@ -1,3 +1,4 @@
++/* SPDX-License-Identifier: GPL-2.0 */
+ #ifndef _LINUX_MODULE_PARAMS_H
+ #define _LINUX_MODULE_PARAMS_H
+ /* (C) Copyright 2001, 2002 Rusty Russell IBM Corporation */
+@@ -60,9 +61,11 @@ struct kernel_param_ops {
+  * Flags available for kernel_param
+  *
+  * UNSAFE - the parameter is dangerous and setting it will taint the kernel
++ * HWPARAM - Hardware param not permitted in lockdown mode
+  */
+ enum {
+-	KERNEL_PARAM_FL_UNSAFE = (1 << 0)
++	KERNEL_PARAM_FL_UNSAFE	= (1 << 0),
++	KERNEL_PARAM_FL_HWPARAM	= (1 << 1),
+ };
+ 
+ struct kernel_param {
+@@ -225,19 +228,11 @@ struct kparam_array
+ 	    VERIFY_OCTAL_PERMISSIONS(perm), level, flags, { arg } }
+ 
+ /* Obsolete - use module_param_cb() */
+-#define module_param_call(name, set, get, arg, perm)			\
+-	static const struct kernel_param_ops __param_ops_##name =		\
+-		{ .flags = 0, (void *)set, (void *)get };		\
++#define module_param_call(name, _set, _get, arg, perm)			\
++	static const struct kernel_param_ops __param_ops_##name =	\
++		{ .flags = 0, .set = _set, .get = _get };		\
+ 	__module_param_call(MODULE_PARAM_PREFIX,			\
+-			    name, &__param_ops_##name, arg,		\
+-			    (perm) + sizeof(__check_old_set_param(set))*0, -1, 0)
+-
+-/* We don't get oldget: it's often a new-style param_get_uint, etc. */
+-static inline int
+-__check_old_set_param(int (*oldset)(const char *, struct kernel_param *))
+-{
+-	return 0;
+-}
++			    name, &__param_ops_##name, arg, perm, -1, 0)
+ 
+ #ifdef CONFIG_SYSFS
+ extern void kernel_param_lock(struct module *mod);
+@@ -451,6 +446,67 @@ extern int param_set_bint(const char *val, const struct kernel_param *kp);
+ 			    perm, -1, 0);				\
+ 	__MODULE_PARM_TYPE(name, "array of " #type)
+ 
++enum hwparam_type {
++	hwparam_ioport,		/* Module parameter configures an I/O port */
++	hwparam_iomem,		/* Module parameter configures an I/O mem address */
++	hwparam_ioport_or_iomem, /* Module parameter could be either, depending on other option */
++	hwparam_irq,		/* Module parameter configures an IRQ */
++	hwparam_dma,		/* Module parameter configures a DMA channel */
++	hwparam_dma_addr,	/* Module parameter configures a DMA buffer address */
++	hwparam_other,		/* Module parameter configures some other value */
++};
++
++/**
++ * module_param_hw_named - A parameter representing a hw parameters
++ * @name: a valid C identifier which is the parameter name.
++ * @value: the actual lvalue to alter.
++ * @type: the type of the parameter
++ * @hwtype: what the value represents (enum hwparam_type)
++ * @perm: visibility in sysfs.
++ *
++ * Usually it's a good idea to have variable names and user-exposed names the
++ * same, but that's harder if the variable must be non-static or is inside a
++ * structure.  This allows exposure under a different name.
++ */
++#define module_param_hw_named(name, value, type, hwtype, perm)		\
++	param_check_##type(name, &(value));				\
++	__module_param_call(MODULE_PARAM_PREFIX, name,			\
++			    &param_ops_##type, &value,			\
++			    perm, -1,					\
++			    KERNEL_PARAM_FL_HWPARAM | (hwparam_##hwtype & 0));	\
++	__MODULE_PARM_TYPE(name, #type)
++
++#define module_param_hw(name, type, hwtype, perm)		\
++	module_param_hw_named(name, name, type, hwtype, perm)
++
++/**
++ * module_param_hw_array - A parameter representing an array of hw parameters
++ * @name: the name of the array variable
++ * @type: the type, as per module_param()
++ * @hwtype: what the value represents (enum hwparam_type)
++ * @nump: optional pointer filled in with the number written
++ * @perm: visibility in sysfs
++ *
++ * Input and output are as comma-separated values.  Commas inside values
++ * don't work properly (eg. an array of charp).
++ *
++ * ARRAY_SIZE(@name) is used to determine the number of elements in the
++ * array, so the definition must be visible.
++ */
++#define module_param_hw_array(name, type, hwtype, nump, perm)		\
++	param_check_##type(name, &(name)[0]);				\
++	static const struct kparam_array __param_arr_##name		\
++	= { .max = ARRAY_SIZE(name), .num = nump,			\
++	    .ops = &param_ops_##type,					\
++	    .elemsize = sizeof(name[0]), .elem = name };		\
++	__module_param_call(MODULE_PARAM_PREFIX, name,			\
++			    &param_array_ops,				\
++			    .arr = &__param_arr_##name,			\
++			    perm, -1,					\
++			    KERNEL_PARAM_FL_HWPARAM | (hwparam_##hwtype & 0));	\
++	__MODULE_PARM_TYPE(name, "array of " #type)
++
++
+ extern const struct kernel_param_ops param_array_ops;
+ 
+ extern const struct kernel_param_ops param_ops_string;
